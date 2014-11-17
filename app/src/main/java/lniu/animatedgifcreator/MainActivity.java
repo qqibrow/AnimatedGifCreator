@@ -10,6 +10,7 @@ import android.provider.MediaStore;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.SurfaceView;
+import android.view.View;
 import android.widget.Toast;
 
 import org.apache.http.Header;
@@ -78,7 +79,7 @@ public class MainActivity extends Activity {
         } // switch
     }
 
-    private void dispatchTakeVideoIntent() {
+    public void dispatchTakeVideoIntent(View view) {
         Intent takeVideoIntent = new Intent(MediaStore.ACTION_VIDEO_CAPTURE);
         startActivityForResult(takeVideoIntent, ACTION_TAKE_VIDEO);
     }
