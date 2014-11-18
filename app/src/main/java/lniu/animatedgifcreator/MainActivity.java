@@ -7,6 +7,7 @@ import android.database.Cursor;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.MediaStore;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.SurfaceView;
@@ -28,7 +29,8 @@ import java.net.URLEncoder;
 
 import com.loopj.android.http.*;
 import org.apache.http.Header;
-
+import twitter4j.*;
+import twitter4j.conf.ConfigurationBuilder;
 
 public class MainActivity extends Activity {
 
@@ -39,6 +41,11 @@ public class MainActivity extends Activity {
     private AsyncHttpClient client;
     private String hostname;
     private EditText editText;
+    private File currFile;
+
+    Twitter twitter;
+    public final String consumer_key = "Replace your KEY";
+    public final String secret_key = "Replace your KEY";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -51,7 +58,17 @@ public class MainActivity extends Activity {
         mVideoUri = null;
         client = new AsyncHttpClient();
         client.setEnableRedirects(true);
+        client.setTimeout(40*1000);
         hostname = this.getResources().getString(R.string.hostname);
+
+        ConfigurationBuilder cb = new ConfigurationBuilder();
+        cb.setDebugEnabled(true)
+                .setOAuthConsumerKey("MbzWeYPTeT9eBQquDNR2GKV3i")
+                .setOAuthConsumerSecret("VTkJM55J5yqtHHZyXAUbO2gKSK8IwnSHQOtW13SPvkTkf6uHUf")
+                .setOAuthAccessToken("756372378-LQ6SGl0s9L6cqiMS05OQvTFQTX5c2VIE6udfGRj5")
+                .setOAuthAccessTokenSecret("BTwqEi4QNriK4cbv8xpbSwXrIxtZM5JSE9C0wqVMfhFBR");
+        TwitterFactory tf = new TwitterFactory(cb.build());
+        twitter = tf.getInstance();
     }
 
 
@@ -84,6 +101,54 @@ public class MainActivity extends Activity {
                 break;
             } // ACTION_TAKE_VIDEO
         } // switch
+    }
+
+    private Boolean isNetworkAvailable() {
+        return true;
+    }
+
+    public void uploadPic(File file, String message,Twitter twitter) throws Exception  {
+        try{
+            StatusUpdate status = new StatusUpdate(message);
+            status.setMedia(file);
+            twitter.updateStatus(status);}
+        catch(TwitterException e){
+            Log.d("TAG", "Pic Upload error" + e.getErrorMessage());
+            throw e;
+        }
+    }
+
+    public void ShareGif(View view) {
+        if(currFile != null) {
+            new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        ConfigurationBuilder cb = new ConfigurationBuilder();
+                        cb.setDebugEnabled(true)
+                                .setOAuthConsumerKey("MbzWeYPTeT9eBQquDNR2GKV3i")
+                                .setOAuthConsumerSecret("VTkJM55J5yqtHHZyXAUbO2gKSK8IwnSHQOtW13SPvkTkf6uHUf")
+                                .setOAuthAccessToken("756372378-LQ6SGl0s9L6cqiMS05OQvTFQTX5c2VIE6udfGRj5")
+                                .setOAuthAccessTokenSecret("BTwqEi4QNriK4cbv8xpbSwXrIxtZM5JSE9C0wqVMfhFBR");
+                        TwitterFactory tf = new TwitterFactory(cb.build());
+                        Twitter twitter = tf.getInstance();
+                        uploadPic(currFile, "", twitter);
+                        MainActivity.this.runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                Toast.makeText(getApplicationContext(),
+                                        "Succeed to post on twitter!", Toast.LENGTH_LONG).show();
+                            }
+                        });
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                }
+            }).start();
+        } else {
+            Toast.makeText(getApplicationContext(),
+                    "Curr file is empty!", Toast.LENGTH_LONG).show();
+        }
     }
 
     public void dispatchTakeVideoIntent(View view) {
@@ -157,6 +222,7 @@ public class MainActivity extends Activity {
                 }
                 // Toast.makeText(getApplicationContext(), "Upload file succeed." + gifFileName,
                 //       Toast.LENGTH_LONG).show();
+                currFile = null;
                 File outputFile = new File(((Context)MainActivity.this).getExternalFilesDir(null), gifFileName);
                 Toast.makeText(getApplicationContext(), outputFile.getAbsolutePath(), Toast.LENGTH_LONG).show();
                 try {
@@ -170,6 +236,7 @@ public class MainActivity extends Activity {
 
                     InputStream gifStream = new FileInputStream(response);
                     gifRun.LoadGiff(surfaceView, getApplicationContext(), gifStream);
+                    currFile = outputFile;
                 }catch (IOException e) {
                     e.printStackTrace();
                 }
