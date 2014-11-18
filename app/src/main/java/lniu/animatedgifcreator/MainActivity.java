@@ -11,6 +11,7 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.SurfaceView;
 import android.view.View;
+import android.widget.EditText;
 import android.widget.Toast;
 
 import org.apache.http.Header;
@@ -22,6 +23,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.URLEncoder;
 
 
 import com.loopj.android.http.*;
@@ -34,6 +36,9 @@ public class MainActivity extends Activity {
     private Uri mVideoUri;
     private GifRun gifRun;
     private SurfaceView surfaceView;
+    private AsyncHttpClient client;
+    private String hostname;
+    private EditText editText;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -42,9 +47,11 @@ public class MainActivity extends Activity {
 
         gifRun = new GifRun();
         surfaceView = (SurfaceView)findViewById(R.id.surfaceView);
+        editText = (EditText)findViewById(R.id.editText);
         mVideoUri = null;
-
-
+        client = new AsyncHttpClient();
+        client.setEnableRedirects(true);
+        hostname = this.getResources().getString(R.string.hostname);
     }
 
 
@@ -100,6 +107,11 @@ public class MainActivity extends Activity {
         }
     }
 
+    private String getGifFileNameFromPath(String path) {
+        String[] substrs = path.split("/");
+        return substrs[substrs.length - 1].replace("mp4", "gif");
+    }
+
     private void handleCameraVideo(Intent intent) {
         mVideoUri = intent.getData();
         String movie_path = getRealPathFromURI(getApplicationContext(), mVideoUri);
@@ -108,18 +120,22 @@ public class MainActivity extends Activity {
                 Toast.LENGTH_LONG).show();
 
         // Upload file to server.
-
         File myFile = new File(movie_path);
-        //  String str = movie_path.split("/")[movie_path.length()-1];
-        //Toast.makeText(getApplicationContext(), str, Toast.LENGTH_LONG).show();
+        System.out.println("Found file " + movie_path);
+        final String gifFileName = getGifFileNameFromPath(movie_path);
         RequestParams params = new RequestParams();
         try {
             params.put("file", myFile, "video/mp4");
         } catch(FileNotFoundException e) {}
-
-        AsyncHttpClient client = new AsyncHttpClient();
-        client.setEnableRedirects(true);
-        client.post("http://10.90.114.82:80/upload", params, new FileAsyncHttpResponseHandler(this) {
+        String want2put = editText.getText().toString();
+        String encoded = "";
+        try {
+            encoded = URLEncoder.encode(want2put, "utf-8");
+        }catch(Exception e) {
+            e.printStackTrace();
+        }
+        client.post(hostname + "/upload" + (want2put.equals("") ? "" : "?words=" + encoded),
+                params, new FileAsyncHttpResponseHandler(this) {
 
             @Override
             public void onStart() {
@@ -141,7 +157,7 @@ public class MainActivity extends Activity {
                 }
                 // Toast.makeText(getApplicationContext(), "Upload file succeed." + gifFileName,
                 //       Toast.LENGTH_LONG).show();
-                File outputFile = new File(((Context)MainActivity.this).getExternalFilesDir(null), response.getName());
+                File outputFile = new File(((Context)MainActivity.this).getExternalFilesDir(null), gifFileName);
                 Toast.makeText(getApplicationContext(), outputFile.getAbsolutePath(), Toast.LENGTH_LONG).show();
                 try {
                     InputStream inputStream = new FileInputStream(response);
@@ -162,6 +178,7 @@ public class MainActivity extends Activity {
             @Override
             public void onRetry(int retryNo) {
                 // called when request is retried
+                Toast.makeText(getApplicationContext(), "Retry is called.", Toast.LENGTH_LONG).show();
             }
         });
 
